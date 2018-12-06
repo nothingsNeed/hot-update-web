@@ -353,6 +353,9 @@ module.exports = {
         }
         return 'H5';
     },
+    arrayBufferToStr(arraybuffer) {
+        return String.fromCharCode.apply(null, new Uint8Array(arraybuffer));
+    },
     // 根据 url type 异步获取url内容 返回base64后的arraybuffer
     getOctetStreamByUrl(url, type, callback) {
         var browserType = this.getBrowserType();
@@ -429,10 +432,16 @@ module.exports = {
         type = type ? type : 'urlCache';
         var backAdd = {url:url, type:type};
         var id = hex_md5(url);
+        // 这里cache的都是base64的内容
+        function callbackSuccess(data) {
+            data.dataBase64 = data.data;
+            data.data = _this.arrayBufferToStr(Base64.toArrayBuffer(data.data));
+            callback(data);
+        }
         if (cache) {
             this.cacheContent(type, id, function(data){
                 if (data.code === 0) {
-                    return callback(_this.backFormat(0, '', data.data, backAdd));
+                    return callbackSuccess(_this.backFormat(0, '', data.data, backAdd));
                 }
                 return _this.getUrlCacheContent(type, url, false, callback);
             });
@@ -445,7 +454,7 @@ module.exports = {
             // 加载成功 cache
             _this.cacheContent(type, id, content, function(data){
                 if (data.code === 0) {
-                    return callback(_this.backFormat(0, '', data.data, backAdd));
+                    return callbackSuccess(_this.backFormat(0, '', data.data, backAdd));
                 }
                 return callback(_this.backFormat(1, data.msg, '', backAdd));
             });

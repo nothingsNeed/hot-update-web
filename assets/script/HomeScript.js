@@ -55,22 +55,7 @@ cc.Class({
 			cc.Pipeline.Downloader.PackDownloader.initPacks(settings.packedAssets);
 		}
 		// 请求资源的处理
-		var mapOld = cc.loader.downloader.extMap;
-		cc.loader.downloader.extMap = {};
-		var mapNew = {};
-		for (var k in mapOld) {
-			mapNew[k] = function(item, callback) {
-				var action = item.type || 'default';
-				var name = item.id;
-				if (action === 'uuid') name = item.uuid;
-				if (!name || !webAssetsList[name]) {
-					return mapOld[action](item, callback);
-				}
-				// 从缓存取资源
-				callback(null, webAssetsList[name].content);
-			};
-		}
-		cc.loader.downloader.addHandlers(mapNew);
+		_this.extMapReplace();
 	},
 
     // start () {},
@@ -175,6 +160,7 @@ cc.Class({
 			if (data.code !== 0) return callback(data);
 			PublicFunc.cacheContent(versionCachePre, item.name, item, function(){
 				item.content = data.data;
+				item.contentBase64 = data.dataBase64;
 				webAssetsList[item.name] = item;
 				callback(data);
 			});
@@ -200,4 +186,189 @@ cc.Class({
 		return vm.runInContext(str, vm.createContext(obj));
     },
 	
+
+	// cc.loader.downloader.extMap 类型很多
+	extMapReplace() {
+		// 根据item获取地址uuid或id
+		function getContent(item) {
+			var action = item.type || 'default';
+			var name = item.id;
+			if (action === 'uuid') name = item.uuid;
+			return webAssetsList[name].content;
+		};
+		function getContentBase64(item) {
+			var action = item.type || 'default';
+			var name = item.id;
+			if (action === 'uuid') name = item.uuid;
+			return webAssetsList[name].contentBase64;
+		};
+		// 图片类 images=downloadImage
+		function downloadImage(item, callback, isCrossOrigin, img) {
+			if (isCrossOrigin === undefined) {
+				isCrossOrigin = true;
+			}
+			// url 是base64后的内容
+			var url = 'data:image/'+item.type+';base64,'+getContentBase64(item);
+			img = img || new Image();
+			if (isCrossOrigin && window.location.protocol !== 'file:') {
+				img.crossOrigin = 'anonymous';
+			}
+			else {
+				img.crossOrigin = null;
+			}
+		
+			if (img.complete && img.naturalWidth > 0 && img.src === url) {
+				return img;
+			}
+			else {
+				function loadCallback () {
+					img.removeEventListener('load', loadCallback);
+					img.removeEventListener('error', errorCallback);
+		
+					img.id = item.id;
+					callback(null, img);
+				}
+				function errorCallback () {
+					img.removeEventListener('load', loadCallback);
+					img.removeEventListener('error', errorCallback);
+		
+					// Retry without crossOrigin mark if crossOrigin loading fails
+					// Do not retry if protocol is https, even if the image is loaded, cross origin image isn't renderable.
+					if (window.location.protocol !== 'https:' && img.crossOrigin && img.crossOrigin.toLowerCase() === 'anonymous') {
+						downloadImage(item, callback, false, img);
+					}
+					else {
+						callback(new Error(debug.getError(4930, url)));
+					}
+				}
+		
+				img.addEventListener('load', loadCallback);
+				img.addEventListener('error', errorCallback);
+				img.src = url;
+			}
+		};
+		// Audio
+		function downloadAudio(item, callback) {
+			var debug = cc.debug;
+			var __audioSupport = cc.sys.__audioSupport;
+			var formatSupport = __audioSupport.format;
+			var context = __audioSupport.context;
+			function loadDomAudio(item, callback){
+				var dom = document.createElement('audio');
+				dom.src = 'data:video/'+item.type+';base64,'+getContentBase64(item);
+
+				if (CC_WECHATGAME) {
+					callback(null, dom);
+					return;
+				}
+
+				var clearEvent = function () {
+					clearTimeout(timer);
+					dom.removeEventListener("canplaythrough", success, false);
+					dom.removeEventListener("error", failure, false);
+					if(__audioSupport.USE_LOADER_EVENT)
+						dom.removeEventListener(__audioSupport.USE_LOADER_EVENT, success, false);
+				};
+				var timer = setTimeout(function () {
+					if (dom.readyState === 0)
+						failure();
+					else
+						success();
+				}, 8000);
+				var success = function () {
+					clearEvent();
+					callback(null, dom);
+				};
+				var failure = function () {
+					clearEvent();
+					var message = 'load audio failure - ' + item.url;
+					cc.log(message);
+					callback(message);
+				};
+				dom.addEventListener("canplaythrough", success, false);
+				dom.addEventListener("error", failure, false);
+				if(__audioSupport.USE_LOADER_EVENT)
+					dom.addEventListener(__audioSupport.USE_LOADER_EVENT, success, false);
+			};
+			function loadWebAudio(item, callback){
+				if (!context)
+					callback(new Error(debug.getError(4926)));
+				callback(null, Base64.toArrayBuffer(getContent(item)));
+			};
+			if (formatSupport.length === 0) {
+				return new Error(debug.getError(4927));
+			}
+		
+			var loader;
+			if (!__audioSupport.WEB_AUDIO) {
+				// If WebAudio is not supported, load using DOM mode
+				loader = loadDomAudio;
+			}
+			else {
+				var loadByDeserializedAudio = item._owner instanceof cc.AudioClip;
+				if (loadByDeserializedAudio) {
+					loader = (item._owner.loadMode === cc.AudioClip.LoadMode.WEB_AUDIO) ? loadWebAudio : loadDomAudio;
+				}
+				else {
+					loader = (item.urlParam && item.urlParam['useDom']) ? loadDomAudio : loadWebAudio;
+				}
+			}
+			loader(item, callback);
+		};
+		// Txt
+		function downloadText(item, callback) {
+			// 从缓存取资源
+			callback(null, getContent(item));
+		};
+		// Binary
+		function downloadBinary(item, callback) {
+			callback(null, new Uint8Array(Base64.toArrayBuffer(getContentBase64(item))));
+		};
+
+		var mapOld = cc.loader.downloader.extMap;
+		cc.loader.downloader.extMap = {};
+		var mapNew = {
+			// JS
+			// 'js' : downloadScript,
+
+			// Images
+			'png' : downloadImage,
+			'jpg' : downloadImage,
+			'bmp' : downloadImage,
+			'jpeg' : downloadImage,
+			'gif' : downloadImage,
+			'ico' : downloadImage,
+			'tiff' : downloadImage,
+			'webp' : downloadImage,
+			'image' : downloadImage,
+		
+			// Audio
+			'mp3' : downloadAudio,
+			'ogg' : downloadAudio,
+			'wav' : downloadAudio,
+			'm4a' : downloadAudio,
+		
+			// Txt
+			'txt' : downloadText,
+			'xml' : downloadText,
+			'vsh' : downloadText,
+			'fsh' : downloadText,
+			'atlas' : downloadText,
+		
+			'tmx' : downloadText,
+			'tsx' : downloadText,
+		
+			'json' : downloadText,
+			'ExportJson' : downloadText,
+			'plist' : downloadText,
+		
+			'fnt' : downloadText,
+		
+			// Binary
+			'binary' : downloadBinary,
+		
+			'default' : downloadText
+		};
+		cc.loader.downloader.addHandlers(mapNew);
+	}
 });
