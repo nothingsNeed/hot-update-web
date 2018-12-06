@@ -14,6 +14,7 @@ cc.Class({
 
     // 所有组件onload 完毕后才会执行start 所以所有方法应该写在start 但之前都写在onload了 就先不改了
     onLoad () {
+		console.log('onload homes');
 		_this = this;
 		window.chongqi = _this.chongqi;
 		this.loadMainJs(function(data){
@@ -26,7 +27,6 @@ cc.Class({
 	chongqi(){
 		console.log('chong qi click.');
 		PublicFunc.cacheContent(versionCachePre, 'src/settings.js', function(data){
-			console.log(data);
 			if (data.code === 0) {
 				PublicFunc.getUrlCacheContent(versionCachePre, data.data.url, true, function(data){
 					console.log(data);
@@ -46,13 +46,34 @@ cc.Class({
 			return true;
 		}
 		window.onload();
-		cc.director.loadScene(settings.launchScene);
+		// cc.director.loadScene(settings.launchScene);
 	},
 
 	replaceCC(settings){
 		// packedAssets 的处理
 		if (settings && settings.packedAssets) {
-			cc.Pipeline.Downloader.PackDownloader.initPacks(settings.packedAssets);
+			var PackDownloader = cc.Pipeline.Downloader.PackDownloader;
+			PackDownloader.initPacks(settings.packedAssets);
+			var _loadNewPackOld = PackDownloader._loadNewPack;
+			function error (uuid, packUuid) {
+				return new Error('Can not retrieve ' + uuid + ' from packer ' + packUuid);
+			}
+			function _loadNewPackNew(uuid, packUuid, callback) {
+				var packUrl = cc.AssetLibrary.getLibUrlNoExt(packUuid) + '.json';
+				if (!webAssetsList[packUrl]) {
+					return _loadNewPackOld(uuid, packUuid, callback);
+				}
+				packJson = webAssetsList[packUrl].content;
+				var res = _doLoadNewPack.call(PackDownloader, uuid, packUuid, packJson);
+				if (res) {
+					callback(null, res);
+				}
+				else {
+					callback(error(uuid, packUuid));
+				}
+			};
+			PackDownloader._loadNewPack = _loadNewPackNew;
+			cc.Pipeline.Downloader.PackDownloader = PackDownloader;
 		}
 		// 请求资源的处理
 		_this.extMapReplace();
@@ -320,6 +341,15 @@ cc.Class({
 			// 从缓存取资源
 			callback(null, getContent(item));
 		};
+		// Deserializer
+		function downloadUuid(item, callback) {
+			var PackDownloader = cc.Pipeline.Downloader.PackDownloader;
+			var result = PackDownloader.load(item, callback);
+			if (result === undefined) {
+				return downloadText(item, callback);
+			}
+			return result || undefined;
+		};
 		// Binary
 		function downloadBinary(item, callback) {
 			callback(null, new Uint8Array(Base64.toArrayBuffer(getContentBase64(item))));
@@ -364,6 +394,9 @@ cc.Class({
 			'plist' : downloadText,
 		
 			'fnt' : downloadText,
+
+			// Deserializer
+			'uuid' : downloadUuid,
 		
 			// Binary
 			'binary' : downloadBinary,
@@ -376,7 +409,7 @@ cc.Class({
 				var action = item.type || 'default';
 				var name = item.id;
 				if (action === 'uuid') name = item.uuid;
-				if (mapNewFunc[action] && webAssetsList[name]) {
+				if (mapNewFunc[action]) {
 					return mapNewFunc[action](arguments[0], arguments[1], arguments[2], arguments[3]);
 				}
 				mapOld[action](arguments[0], arguments[1], arguments[2], arguments[3]);
