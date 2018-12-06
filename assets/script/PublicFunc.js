@@ -339,6 +339,90 @@ module.exports = {
         back.data = data;
         return back;
     },
+    // 获取当前运行环境 WxGame|H5
+    getBrowserType() {
+        var browserType = cc.sys.browserType;
+        var browserLists = {
+            // 微信小游戏环境
+            'WxGame': [cc.sys.BROWSER_TYPE_WECHAT_GAME]
+        };
+        for (var k in browserLists) {
+            if (this.inArray(browserType, browserLists[k])) {
+                return k;
+            }
+        }
+        return 'H5';
+    },
+    // 根据 url type 异步获取url内容 返回base64后的arraybuffer
+    getOctetStreamByUrl(url, type, callback) {
+        var browserType = this.getBrowserType();
+        var _this = this;
+        _this['getOctetStreamByUrl'+browserType](url, type, callback);
+    },
+    // 根据 url type 异步获取url内容 H5
+    getOctetStreamByUrlH5(url, type, callback) {
+        var _this = this;
+        type = type || 'application/octet-stream';
+        var xhr = window.XMLHttpRequest ? new window.XMLHttpRequest() : new ActiveXObject('MSXML2.XMLHTTP');
+        var errInfo = 'Load '+type+' file failed: ' + url;
+        function errBack(item) {
+            var status = item.status;
+            var msg = item.errorMessage;
+            callback(_this.backFormat(1, msg, {status:status}));
+        }
+        xhr.open('GET', url, true);
+        xhr.overrideMimeType(type);
+        xhr.responseType = "arraybuffer";
+        xhr.onload = function () {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200 || xhr.status === 0) {
+                    var str = Base64.fromArrayBuffer(xhr.response);
+                    callback(_this.backFormat(0, '', str));
+                }
+                else {
+                    errBack({status:xhr.status, errorMessage:errInfo + '(wrong status)'});
+                }
+            }
+            else {
+                errBack({status:xhr.status, errorMessage:errInfo + '(wrong readyState)'});
+            }
+        };
+        xhr.onerror = function(){
+            errBack({status:xhr.status, errorMessage:errInfo + '(error)'});
+        };
+        xhr.ontimeout = function(){
+            errBack({status:xhr.status, errorMessage:errInfo + '(time out)'});
+        };
+        xhr.send(null);
+    },
+    getOctetStreamByUrlWxGame:function(url, type, callback) {
+        var _this = this;
+        type = type || 'application/octet-stream';
+        function errBack(code, msg, data) {
+            callback(_this.backFormat(code, msg, data));
+        }
+        // 微信小程序请求
+        wx.request({
+            url:url,
+            data:'',
+            header:{
+                "Content-Type":type
+            },
+            method:'GET',
+            dataType:'json',
+            responseType:'arraybuffer',
+            success:function(data){
+                var str = Base64.fromArrayBuffer(data.data);
+                errBack(0, '', str);
+            },
+            fail:function(data){
+                errBack(1, data.errMsg);
+            },
+            complete:function(){
+                // console.log('complete', arguments);
+            }
+        });
+    },
     // 根据 url 获取url内容
     getUrlCacheContent(type, url, cache, callback) {
         var _this = this;
@@ -355,10 +439,9 @@ module.exports = {
             return false;
         }
         // 从服务器获取
-        cc.loader.load({url:url,type:type}, undefined, function(errObj, content){
-            if (errObj) {
-                return callback(_this.backFormat(1, errObj.errorMessage, '', backAdd));
-            }
+        _this.getOctetStreamByUrl(url, '', function(data){
+            if (data.code !== 0) return callback(data);
+            var content = data.data;
             // 加载成功 cache
             _this.cacheContent(type, id, content, function(data){
                 if (data.code === 0) {
