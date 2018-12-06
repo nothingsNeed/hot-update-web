@@ -40,7 +40,7 @@ cc.Class({
 	},
 
 	onloadBoot(settings) {
-		_this.replaceCC();
+		_this.replaceCC(settings);
 		if (window.boot) {
 			window.boot();
 			return true;
@@ -49,15 +49,22 @@ cc.Class({
 		cc.director.loadScene(settings.launchScene);
 	},
 
-	replaceCC(){
+	replaceCC(settings){
+		// packedAssets 的处理
+		if (settings && settings.packedAssets) {
+			cc.Pipeline.Downloader.PackDownloader.initPacks(settings.packedAssets);
+		}
+		// 请求资源的处理
 		var mapOld = cc.loader.downloader.extMap;
 		cc.loader.downloader.extMap = {};
 		var mapNew = {};
 		for (var k in mapOld) {
 			mapNew[k] = function(item, callback) {
-				var name = item.url;
+				var action = item.type || 'default';
+				var name = item.id;
+				if (action === 'uuid') name = item.uuid;
 				if (!name || !webAssetsList[name]) {
-					return mapOld[k](item, callback);
+					return mapOld[action](item, callback);
 				}
 				// 从缓存取资源
 				callback(null, webAssetsList[name].content);
@@ -166,7 +173,7 @@ cc.Class({
 		// 先缓存url 再缓存对象
 		PublicFunc.getUrlCacheContent(versionCachePre, item.url, cache, function(data){
 			if (data.code !== 0) return callback(data);
-			PublicFunc.cacheContent(versionCachePre, item.name, item, function(data){
+			PublicFunc.cacheContent(versionCachePre, item.name, item, function(){
 				item.content = data.data;
 				webAssetsList[item.name] = item;
 				callback(data);
