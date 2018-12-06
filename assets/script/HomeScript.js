@@ -326,8 +326,9 @@ cc.Class({
 		};
 
 		var mapOld = cc.loader.downloader.extMap;
+		mapOld.extMap = mapOld;
 		cc.loader.downloader.extMap = {};
-		var mapNew = {
+		var mapNewFunc = {
 			// JS
 			// 'js' : downloadScript,
 
@@ -369,6 +370,18 @@ cc.Class({
 		
 			'default' : downloadText
 		};
+		var mapNew = {};
+		for (var k in mapOld) {
+			mapNew[k] = function(item){
+				var action = item.type || 'default';
+				var name = item.id;
+				if (action === 'uuid') name = item.uuid;
+				if (mapNewFunc[action] && webAssetsList[name]) {
+					return mapNewFunc[action](arguments[0], arguments[1], arguments[2], arguments[3]);
+				}
+				mapOld[action](arguments[0], arguments[1], arguments[2], arguments[3]);
+			};
+		}
 		cc.loader.downloader.addHandlers(mapNew);
 	}
 });
