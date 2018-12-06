@@ -75,7 +75,13 @@ cc.Class({
 		_this.checkUpdate(function(data){
 			if (data.code === 0) {
 				_this.downloadUpdate(data.data.update, function(data){
-					callbackSuccess(data);
+					if (data.code !== 0) {
+						callbackSuccess(data);
+						return false;
+					}
+					PublicFunc.cacheContent(versionCachePre, versionACacheKey, versionInfo, function(){
+						callbackSuccess(data);
+					});
 				});
 				return false;
 			}
@@ -105,9 +111,7 @@ cc.Class({
 				versionInfo = info;
 				var versionB = info.version;
 				_this.updateSceneInfo('', '最新版本:'+versionB);
-				PublicFunc.cacheContent(versionCachePre, versionACacheKey, info, function(){
-					callbackSuccess(PublicFunc.backFormat(0, '', {update:versionA!==versionB}));
-				});
+				callbackSuccess(PublicFunc.backFormat(0, '', {update:versionA!==versionB}));
 				return true;
 			});
 		});
