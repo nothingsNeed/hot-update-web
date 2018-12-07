@@ -311,16 +311,17 @@ module.exports = {
         var data = {key:keyAdd, type:type, id:id};
         if (content === undefined) {
             // 获取
-            try {
+            // try {
                 var dataSave = JSON.parse(cc.sys.localStorage.getItem(key));
+                dataSave = dataSave || {};
                 data.content = dataSave.content;
                 var keyVerify = hex_md5(JSON.stringify(data));
                 if (keyVerify === dataSave.key) {
                     return callback(this.backFormat(0, '', dataSave.content));
                 }
-            } catch(e) {
-                return callback(this.backFormat(1, e.message));
-            }
+            // } catch(e) {
+            //     return callback(this.backFormat(1, e.message));
+            // }
             return callback(this.backFormat(2, '未知错误'));
         }
         // 设置
