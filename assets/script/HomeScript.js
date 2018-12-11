@@ -47,6 +47,7 @@ cc.Class({
 
 	onloadBoot(settings) {
 		_this.replaceCC(settings);
+		cc.loader.releaseAll();
 		cc.game._prepared = false;
 		var bootReal = function(){
 			var settings = window._CCSettings;
@@ -395,6 +396,10 @@ cc.Class({
 		};
 		// JS
 		function downloadScript(item, callback, isAsync) {
+			// vm直接执行
+			_this.runInContextReal(getContent(item));
+			callback(null, item.url);
+			return false;
 			var url = item.url,
 				d = document,
 				s = document.createElement('script');
