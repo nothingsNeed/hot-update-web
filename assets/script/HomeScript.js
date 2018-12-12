@@ -15,7 +15,12 @@ cc.Class({
     // 所有组件onload 完毕后才会执行start 所以所有方法应该写在start 但之前都写在onload了 就先不改了
     onLoad () {
 		_this = this;
-		this.loadMainJs(function(data){
+		this.node.getChildByName('reload').on('click', this.loadAssets, this);
+		this.loadAssets();
+	},
+
+	loadAssets(){
+		this.loadMainJs(function(){
 			// 这里一定是成功加载完成
 			// web端重启游戏
 			_this.chongqi();
