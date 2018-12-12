@@ -244,6 +244,8 @@ module.exports = {
         if (!type || !id) {
             return callback(this.backFormat(1, '类型和id必须存在'));
         }
+        // 有些要创建文件 所以id里面不能有/-等特殊字符
+        id = id.replace(/(\/|-)/g, "_");
         callback = this.callbackInit(callback);
         var browserType = cc.sys.browserType;
         var browserLists = {
