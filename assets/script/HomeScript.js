@@ -14,18 +14,15 @@ cc.Class({
 
     // 所有组件onload 完毕后才会执行start 所以所有方法应该写在start 但之前都写在onload了 就先不改了
     onLoad () {
-		console.log('onload homes');
 		_this = this;
-		window.chongqi = _this.chongqi;
 		this.loadMainJs(function(data){
 			// 这里一定是成功加载完成
 			// web端重启游戏
-			console.log('chongqi');
+			_this.chongqi();
 		});
 	},
 	
 	chongqi(){
-		console.log('chong qi click.');
 		_this.onloadJsFromCache('src/settings.js', function(){
 			return _this.onloadBoot(window._CCSettings);
 		});
@@ -374,7 +371,6 @@ cc.Class({
 			__require:window.__require
 		};
 		var result = vm.runInContext(str, vm.createContext(obj));
-		console.log(result);
 		return result;
     },
 	
