@@ -5,6 +5,8 @@ var _this;
 var versionCachePre = 'versionCachePre';
 var versionACacheKey = 'versionA:'+versionUrl;
 var versionInfo = {};
+var projectInfoA = {};
+var projectInfoB = {};
 var webAssetsList = {};
 cc.Class({
     extends: cc.Component,
@@ -254,20 +256,29 @@ cc.Class({
     
     // 获取主配置文件 主配置文件只能有一个
     loadMainJs(callbackSuccess) {
+		function loadErrorTips(data) {
+			_this.updateSceneInfo('', data.msg, true);
+		};
 		_this.checkUpdate(function(data){
-			if (data.code === 0) {
-				_this.downloadUpdate(data.data.update, function(data){
-					if (data.code !== 0) {
-						callbackSuccess(data);
-						return false;
-					}
-					PublicFunc.cacheContent(versionCachePre, versionACacheKey, versionInfo, function(){
-						callbackSuccess(data);
+			if (data.code !== 0) return loadErrorTips(data);
+			var update = data.data.update;
+			PublicFunc.cacheContent(versionCachePre, versionACacheKey+versionInfo.remoteManifestUrl, function(data){
+				projectInfoA = {};
+				if (data.code === 0) {
+					projectInfoA = data.data;
+				}
+				_this.downloadUpdate(update, function(data){
+					if (data.code !== 0) return loadErrorTips(data);
+					// 缓存 remoteManifestUrl 内容
+					PublicFunc.cacheContent(versionCachePre, versionACacheKey+versionInfo.remoteManifestUrl, projectInfoB, function(data){
+						if (data.code !== 0) return loadErrorTips(data);
+						PublicFunc.cacheContent(versionCachePre, versionACacheKey, versionInfo, function(data){
+							if (data.code !== 0) return loadErrorTips(data);
+							callbackSuccess(data);
+						});
 					});
 				});
-				return false;
-			}
-			return callbackSuccess(data);
+			});
 		});
 	},
 	
@@ -315,6 +326,7 @@ cc.Class({
 				_this.updateSceneInfo(versionInfo.remoteManifestUrl, '格式错误', true);
 				return false;
 			}
+			projectInfoB = JSON.parse(data.data);
 			function loadSuccess() {
 				_this.updateSceneInfo('', '资源加载完成');
 				return callbackSuccess(PublicFunc.backFormat(0, ''));
@@ -345,6 +357,17 @@ cc.Class({
 
 	cacheItemByAsset(item, cache, callback) {
 		// item={name,url,size,md5} 这特么md5的是文件 不是内容
+		// 资源未改变从缓存取
+		if (!cache) {
+			var size = '', md5 = '';
+			if (item.name && projectInfoA && projectInfoA['assets'] && projectInfoA['assets'][item.name]) {
+				size = projectInfoA['assets'][item.name].size;
+				md5 = projectInfoA['assets'][item.name].md5;
+			}
+			if (item.size === size && item.md5 === md5) {
+				cache = true;
+			}
+		}
 		// 先缓存url 再缓存对象
 		PublicFunc.getUrlCacheContent(versionCachePre, item.url, cache, function(data){
 			if (data.code !== 0) return callback(data);
