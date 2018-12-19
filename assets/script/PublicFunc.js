@@ -36,18 +36,9 @@ module.exports = {
         // 有些要创建文件 所以id里面不能有/-等特殊字符
         id = id.replace(/(\/|-)/g, "_");
         callback = this.callbackInit(callback);
-        var browserType = cc.sys.browserType;
-        var browserLists = {
-            // 微信小游戏环境
-            'WxGame': [cc.sys.BROWSER_TYPE_WECHAT_GAME]
-        };
-        for (var k in browserLists) {
-            if (this.inArray(browserType, browserLists[k])) {
-                var _this = this;
-                return _this['cacheContent'+k](type, id, content, callback);
-            }
-        }
-        return this.cacheContentH5(type, id, content, callback);
+        var browserType = this.getBrowserType();
+        var _this = this;
+        return _this['cacheContent'+browserType](type, id, content, callback);
     },
     // 基于微信小游戏环境 根据type, id 获取或设置缓存内容
     cacheContentWxGame(type, id, content, callback) {
@@ -103,7 +94,8 @@ module.exports = {
         if (content === undefined) {
             // 获取
             // try {
-                var dataSave = JSON.parse(cc.sys.localStorage.getItem(key));
+                var str = cc.sys.localStorage.getItem(key);
+                var dataSave = str ? JSON.parse(str) : {};
                 dataSave = dataSave || {};
                 data.content = dataSave.content;
                 var keyVerify = hex_md5(JSON.stringify(data));
