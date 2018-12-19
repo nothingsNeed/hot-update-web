@@ -1,5 +1,6 @@
 import {hex_md5} from './md5.js';
 import {Base64} from './base64.js';
+import {TextDecoder} from './TextDecoder.js';
 module.exports = {
     toString:function(str) {
         if (str) {
@@ -146,6 +147,7 @@ module.exports = {
         return 'H5';
     },
     arrayBufferToStr(arraybuffer) {
+        return new TextDecoder('utf-8').decode(new Uint8Array(arraybuffer));
         return String.fromCharCode.apply(null, new Uint8Array(arraybuffer));
     },
     // 根据 url type 异步获取url内容 返回base64后的arraybuffer
