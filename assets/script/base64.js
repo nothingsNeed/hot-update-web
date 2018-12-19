@@ -7,7 +7,7 @@
  *  References:
  *    http://en.wikipedia.org/wiki/Base64
  */
-
+var Base64Export = {};
 (function(global) {
     'use strict';
     // existing version for noConflict()
@@ -252,4 +252,5 @@
     if (global['Meteor']) {
        Base64 = global.Base64; // for normal export in Meteor.js
     }
-})(this);
+})(Base64Export);
+module.exports = {Base64:Base64Export.Base64};

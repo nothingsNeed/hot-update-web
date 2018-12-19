@@ -254,12 +254,12 @@ function binl2b64(binarray)
   }
   return str;
 }
-// 兼容部分平台 将方法暴露为windows方法
-(function(){
-  window.hex_md5 = hex_md5;
-  window.b64_md5 = b64_md5;
-  window.str_md5 = str_md5;
-  window.hex_hmac_md5 = hex_hmac_md5;
-  window.b64_hmac_md5 = b64_hmac_md5;
-  window.str_hmac_md5 = str_hmac_md5;
-})();
+// 兼容部分平台
+module.exports = {
+  hex_md5:hex_md5,
+  b64_md5:b64_md5,
+  str_md5:str_md5,
+  hex_hmac_md5:hex_hmac_md5,
+  b64_hmac_md5:b64_hmac_md5,
+  str_hmac_md5:str_hmac_md5
+};

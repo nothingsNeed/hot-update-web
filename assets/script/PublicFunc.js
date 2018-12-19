@@ -1,3 +1,5 @@
+import {hex_md5} from './md5.js';
+import {Base64} from './base64.js';
 module.exports = {
     toString:function(str) {
         if (str) {
@@ -120,6 +122,10 @@ module.exports = {
         cc.sys.localStorage.setItem(key, JSON.stringify(dataSave));
         return callback(this.backFormat(0, '', content));
     },
+    // WxDevTools 于 H5一样
+    cacheContentWxDevTools(){
+        this.cacheContentH5.apply(this, arguments);
+    },
     backFormat(code, msg, data, back) {
         if (back === undefined) {
             back = {};
@@ -129,8 +135,12 @@ module.exports = {
         back.data = data;
         return back;
     },
-    // 获取当前运行环境 WxGame|H5
+    // 获取当前运行环境 WxGame|H5|WxDevTools
     getBrowserType() {
+        // WxDevTools
+        if (window.wx && window.wx.env && window.wx.env.USER_DATA_PATH === 'http://usr') {
+            return 'WxDevTools';
+        }
         var browserType = cc.sys.browserType;
         var browserLists = {
             // 微信小游戏环境
@@ -215,6 +225,9 @@ module.exports = {
                 // console.log('complete', arguments);
             }
         });
+    },
+    getOctetStreamByUrlWxDevTools(){
+        this.getOctetStreamByUrlWxGame.apply(this, arguments);
     },
     // 根据 url 获取url内容
     getUrlCacheContent(type, url, cache, callback) {

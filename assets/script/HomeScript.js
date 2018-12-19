@@ -1,4 +1,5 @@
 var PublicFunc = require('./PublicFunc');
+import {Base64} from './base64.js';
 var vm = require('./vm');
 var versionUrl = 'http://192.168.83.197:9504/cocosfile/HelloWorld/remote-assets/version.manifest';
 var _this;
@@ -396,7 +397,8 @@ cc.Class({
 		var obj = {
 			window:window,
 			cc:cc,
-			__require:window.__require
+			__require:window.__require,
+			wx:window.wx
 		};
 		var result = vm.runInContext(str, vm.createContext(obj));
 		return result;
