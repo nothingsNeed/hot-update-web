@@ -258,7 +258,7 @@ module.exports = {
         });
     },
     WX_errMsgFormat(errMsg) {
-        if (errMsg.match(/^[^\:]+:ok$/)) {
+        if (errMsg && errMsg.match(/^[^\:]+:ok$/)) {
             return this.backFormat(0, errMsg);
         }
         return this.backFormat(1, errMsg);
@@ -280,5 +280,32 @@ module.exports = {
                 return callback(_this.backFormat(1, back.msg, [path, pathFirst]));
             }});
         }});
+    },
+    WX_mkDirSync(fs, pathPre, path) {
+        // 同步创建文件夹
+        var _this = this;
+        path = path.replace(/\/$/, '');
+        if (path == pathPre) return _this.backFormat(0, '');
+        // 微信文件系统的mkdir 真尼玛逗比文档描述于实际不符recursive参数就是废柴 版本已经最新
+        var pathReal = path.replace(new RegExp("^"+pathPre), '');
+        var pathFirst = pathPre + _this.toString(pathReal.match(/^\/[^\/]+/)[0]);
+        var okMsg = 'all:ok';
+        var errMsg = okMsg;
+        try {
+            fs.accessSync(pathFirst);
+        } catch(e) {
+            errMsg = e.message;
+        }
+        var back = _this.WX_errMsgFormat(errMsg);
+        if (back.code === 0) return _this.WX_mkDirSync(fs, pathFirst, path);
+        errMsg = okMsg;
+        try {
+            fs.mkdirSync(pathFirst, true);
+        } catch(e) {
+            errMsg = e.message;
+        }
+        var back = _this.WX_errMsgFormat(errMsg);
+        if (back.code === 0) return _this.WX_mkDirSync(fs, pathFirst, path);
+        return back;
     }
 };
